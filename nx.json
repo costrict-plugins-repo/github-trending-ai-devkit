@@ -1,0 +1,37 @@
+{
+  "$schema": "./node_modules/nx/schemas/nx-schema.json",
+  "defaultBase": "main",
+  "namedInputs": {
+    "default": [
+      "{projectRoot}/**/*",
+      "sharedGlobals"
+    ],
+    "sharedGlobals": []
+  },
+  "targetDefaults": {
+    "build": {
+      "dependsOn": [
+        "^build"
+      ]
+    },
+    "test": {
+      "inputs": [
+        "default",
+        "^default"
+      ]
+    },
+    "lint": {
+      "inputs": [
+        "default",
+        "^default"
+      ]
+    }
+  },
+  "release": {
+    "projectsRelationship": "independent",
+    "version": {
+      "preserveMatchingDependencyRanges": false
+    }
+  },
+  "analytics": false
+}

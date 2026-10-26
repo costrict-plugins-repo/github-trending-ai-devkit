@@ -1,0 +1,181 @@
+import { notFound } from "next/navigation";
+import type { Metadata } from "next";
+import FaqPageShell from "@/components/faq/FaqPageShell";
+import TryIt from "@/components/faq/TryIt";
+import GettingStartedGuides from "@/components/GettingStartedGuides";
+import { getDocPage } from "@/lib/content/loader";
+import {
+  findSetupToolBySlug,
+  setupToolEntries,
+} from "@/lib/seo/setup-tools";
+
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://ai-devkit.com";
+const baseDocSlug = "1-getting-started";
+
+interface SetupPageProps {
+  params: Promise<{ tool: string }>;
+}
+
+function buildTitle(tool: string): string {
+  return `Setting up AI DevKit for ${tool}`;
+}
+
+function buildDescription(tool: string): string {
+  return `Set up AI DevKit for ${tool} with one local config, console, memory layer, communication path, workflow skills, and verification.`;
+}
+
+function buildSeoContent(tool: string, baseContent: string): string {
+  const intro = [
+    "",
+    `Learn how to set up AI DevKit for **${tool}** so your team can use the same operating model across AI coding agents.`,
+    "",
+    `AI DevKit adds project-local setup, memory, communication, workflow skills, and verification to ${tool} so every project follows the same playbook.`,
+    "",
+    "## What you'll configure",
+    "",
+    "- Project initialization and environment selection",
+    "- AI editor files like rules, agents, and commands",
+    "- Memory, communication, verification, and skills for repeatable workflows",
+    "",
+  ].join("\n");
+
+  const outro = [
+    "",
+    "## Next steps",
+    "",
+    `Once AI DevKit is set up in ${tool}, follow the getting started guide and ask the agent to use the \`dev-lifecycle\` skill so it plans before editing code.`,
+  ].join("\n");
+
+  return `${intro}${baseContent}${outro}`;
+}
+
+export async function generateStaticParams() {
+  return setupToolEntries.map((entry) => ({
+    tool: entry.slug,
+  }));
+}
+
+export async function generateMetadata({
+  params,
+}: SetupPageProps): Promise<Metadata> {
+  const { tool: slug } = await params;
+  const entry = findSetupToolBySlug(slug);
+
+  if (!entry) {
+    return {
+      title: "Page Not Found",
+      description: "The requested setup page could not be found.",
+    };
+  }
+
+  const title = buildTitle(entry.tool);
+  const description = buildDescription(entry.tool);
+  const pageUrl = `${siteUrl}/faq/getting-started/${entry.slug}`;
+
+  return {
+    title,
+    description,
+    keywords: [
+      title,
+      entry.tool,
+      "AI DevKit",
+      "AI coding assistant",
+      "setup guide",
+      "AI agent control plane",
+      "commands",
+      "memory",
+    ],
+    openGraph: {
+      title,
+      description,
+      url: pageUrl,
+      siteName: "AI DevKit",
+      locale: "en_US",
+      type: "article",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+    },
+    alternates: {
+      canonical: pageUrl,
+    },
+  };
+}
+
+export default async function SetupToolPage({ params }: SetupPageProps) {
+  const { tool: slug } = await params;
+  const entry = findSetupToolBySlug(slug);
+
+  if (!entry) {
+    notFound();
+  }
+
+  const baseDoc = getDocPage(baseDocSlug);
+  const baseContent =
+    baseDoc?.content ||
+    "AI DevKit gives AI coding agents one control plane with setup, console supervision, local-first memory, communication, workflow skills, and verification.";
+
+  const content = buildSeoContent(entry.tool, baseContent);
+  const pageUrl = `${siteUrl}/faq/getting-started/${entry.slug}`;
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Article",
+        headline: buildTitle(entry.tool),
+        description: buildDescription(entry.tool),
+        url: pageUrl,
+        author: {
+          "@type": "Organization",
+          name: "AI DevKit",
+        },
+        publisher: {
+          "@type": "Organization",
+          name: "AI DevKit",
+          url: siteUrl,
+        },
+      },
+      {
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          { "@type": "ListItem", position: 1, name: "Home", item: siteUrl },
+          {
+            "@type": "ListItem",
+            position: 2,
+            name: "FAQ",
+            item: `${siteUrl}/faq/`,
+          },
+          {
+            "@type": "ListItem",
+            position: 3,
+            name: buildTitle(entry.tool),
+            item: pageUrl,
+          },
+        ],
+      },
+    ],
+  };
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+      />
+      <FaqPageShell
+        breadcrumb={[
+          { label: "FAQ", href: "/faq" },
+          { label: "Setup", href: "/faq#setup" },
+        ]}
+        title={buildTitle(entry.tool)}
+        description={buildDescription(entry.tool)}
+        content={content}
+      >
+        <TryIt />
+        <GettingStartedGuides excludeSlug={entry.slug} />
+      </FaqPageShell>
+    </>
+  );
+}

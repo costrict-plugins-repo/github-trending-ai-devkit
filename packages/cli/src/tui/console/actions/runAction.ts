@@ -1,0 +1,85 @@
+import { spawn } from "child_process";
+import type { ConsoleAction } from "./types.js";
+
+export interface ActionResult {
+  exitCode: number | null;
+  error?: string;
+  cancelled?: boolean;
+}
+
+function resolveCliEntry(): { command: string; baseArgs: string[] } {
+  return { command: process.execPath, baseArgs: [...process.execArgv, process.argv[1]] };
+}
+
+export async function runAction(
+  action: ConsoleAction,
+  options?: { signal?: AbortSignal },
+): Promise<ActionResult> {
+  const { command, baseArgs } = resolveCliEntry();
+  const argv = (() => {
+    switch (action.type) {
+      case "open":
+        return [...baseArgs, "agent", "open", action.agentName];
+      case "send":
+        return [...baseArgs, "agent", "send", action.message, "--id", action.agentName];
+      case "start":
+        return [
+          ...baseArgs,
+          "agent",
+          "start",
+          "--type",
+          action.agentType,
+          "--name",
+          action.name,
+          "--cwd",
+          action.cwd,
+          ...(action.mode ? ["--mode", action.mode] : []),
+          ...(action.args ?? []),
+        ];
+      case "kill":
+        return [...baseArgs, "agent", "kill", action.agentName];
+      case "rename":
+        return [...baseArgs, "agent", "rename", action.currentName, action.newName];
+      case "channel-start":
+        return [
+          ...baseArgs,
+          "channel",
+          "start",
+          action.channelName,
+          "--agent",
+          action.agentName,
+          "--daemon",
+        ];
+      case "channel-stop":
+        return [...baseArgs, "channel", "stop", action.channelName];
+    }
+  })();
+
+  return new Promise<ActionResult>((resolve) => {
+    // Use pipe so the subprocess never takes over the TUI's terminal.
+    const child = spawn(command, argv, { stdio: ["ignore", "pipe", "pipe"] });
+    const stderrChunks: Buffer[] = [];
+    let settled = false;
+    const settle = (result: ActionResult) => {
+      if (settled) return;
+      settled = true;
+      options?.signal?.removeEventListener("abort", onAbort);
+      resolve(result);
+    };
+    const onAbort = () => {
+      child.kill("SIGTERM");
+      settle({ exitCode: null, cancelled: true });
+    };
+    if (options?.signal?.aborted) {
+      onAbort();
+      return;
+    }
+    options?.signal?.addEventListener("abort", onAbort, { once: true });
+    child.stderr?.on("data", (chunk: Buffer) => stderrChunks.push(chunk));
+    child.once("error", (err) => settle({ exitCode: null, error: err.message }));
+    child.once("exit", (code) => {
+      const stderr = Buffer.concat(stderrChunks).toString().trim();
+      settle({ exitCode: code, error: code !== 0 && stderr ? stderr : undefined });
+    });
+  });
+}
