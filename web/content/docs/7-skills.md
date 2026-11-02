@@ -1,0 +1,606 @@
+---
+title: Skills
+description: Install reusable skills that teach AI coding agents team workflows, coding standards, testing patterns, and domain-specific practices.
+slug: skills
+section: features
+order: 1
+---
+
+**Skills** are reusable instruction packs that extend what your AI coding agents can do. Each skill teaches an agent a specific workflow or domain practice, such as frontend design, database optimization, security review, or multi-agent coordination.
+
+The normal onboarding flow installs AI DevKit's built-in skills globally during machine setup. Complete [Getting Started](/docs/1-getting-started) first; use this page when you want to manage skills manually or add skills from another registry.
+
+> **Note:** AI DevKit reads your project configuration from `.ai-devkit.json`. If this file doesn't exist when you run `skill add`, you'll be prompted to select which AI environments to configure. Skills require at least one skill-capable environment listed below.
+
+## How Skills Work
+
+A skill is a folder containing a `SKILL.md` file and optional supporting resources (scripts, examples, templates). When you install a skill, it's **symlinked** into your project's skill directory, making it immediately available to your AI agent.
+
+> **What's a symlink?** A symlink (symbolic link) is like a shortcut—instead of copying files, it creates a reference to the original location. This means updates to the cached skill are automatically reflected in your project. On systems where symlinks aren't supported, files are copied instead.
+
+Skills are distributed via **Skill Registries**—GitHub repositories that follow a standard structure. The AI DevKit maintains a curated list of registries, so you can easily discover and install skills from the community.
+
+You can also [browse AI coding agent skills](/skills) on the web, including built-in AI DevKit skills and installable community skills from supported registries.
+
+## Built-in Skills in AI DevKit
+
+AI DevKit ships with a core set of skills in its default registry:
+
+| Skill | Purpose |
+|---|---|
+| `agent-communication` | Exchange information with active AI coding agents |
+| `agent-management` | Discover, start, inspect, and manage local coding agents |
+| `agent-orchestration` | Supervise multi-agent workflows: poll progress, unblock agents, and verify completion |
+| `ai-devkit-setup` | Check readiness and run setup only when onboarding or integration gaps require it |
+| `remote-from-slack` | Connect the current agent session to an available Slack channel bridge |
+| `remote-from-telegram` | Connect the current agent session to an available Telegram channel bridge |
+| `document-code` | Document code entry points with structured analysis and dependency mapping |
+| `dev-commit` | Commit only intended, verified changes with a conventional message |
+| `dev-lifecycle` | Orchestrate the SDLC workflow and route to phase skills |
+| `dev-worktree` | Set up or resume isolated feature worktrees |
+| `dev-requirements` | Capture and review feature requirements |
+| `dev-design` | Validate architecture and resolve design trade-offs |
+| `dev-planning` | Create and reconcile implementation plans |
+| `dev-implementation` | Execute plans and verify implementation against design |
+| `dev-testing` | Add and validate feature test coverage |
+| `dev-review` | Run a holistic pre-push code review |
+| `dev-pr` | Publish a ready feature branch for review |
+| `dev-debug` | Follow a disciplined debugging and RCA process before implementing fixes |
+| `memory` | Use AI DevKit memory operations via CLI patterns when needed |
+| `task` | Track lifecycle and debugging progress in the durable task system |
+| `dev-simplify` | Simplify and refactor complex code paths for maintainability |
+| `dev-refactor` | Plan and run structural, multi-file refactors that preserve behavior and public contracts |
+| `brainstorm` | Explore, compare, and refine product or technical ideas |
+| `tdd` | Apply test-driven development by writing a failing test before production code |
+| `verify` | Require fresh terminal evidence before claiming work is complete |
+| `dev-smoke` | Smoke-test the flows a change affects end to end with a disposable sandboxed script |
+| `dev-retro` | Turn friction from finished work into durable fixes, automation first |
+| `session-compact` | Compact a historical agent session into durable continuation facts and memory candidates |
+
+You can install these skills the same way you install community skills.
+
+The built-in set is served from a remote manifest, so new built-in skills can ship without a CLI release; an embedded copy is used as an offline fallback.
+
+The repository also contains skills such as `technical-writer`, `security-review`, and `changelog`. They can be installed individually from the AI DevKit registry, but they are not part of the curated set installed by `ai-devkit skill add --built-in`.
+
+For more detail, see the skill pages for [`dev-lifecycle`](/skills/dev-lifecycle), [`dev-debug`](/skills/dev-debug), [`tdd`](/skills/tdd), [`verify`](/skills/verify), and [`security-review`](/skills/security-review).
+
+## Quick Start
+
+After machine setup, initialize the project and add the skill you want:
+
+```bash
+# 1. Initialize AI DevKit in your project (if not already done)
+ai-devkit init
+
+# 2. Install a skill from a registry
+ai-devkit skill add anthropics/skills frontend-design
+
+# 3. Your AI agent can now use the skill.
+```
+
+Once installed, simply ask your AI agent to use the skill's capabilities—it will automatically apply the techniques and patterns defined in the skill.
+
+## Supported Environments
+
+Skills are currently supported by the following AI coding agents:
+
+| Environment     | Project Skill Path | Global Skill Path |
+| --------------- | ------------------ | ----------------- |
+| **Cursor**      | `.cursor/skills`   | `~/.cursor/skills` |
+| **Claude Code** | `.claude/skills`   | `~/.claude/skills` |
+| **GitHub Copilot** | `.github/skills` | `~/.copilot/skills` |
+| **Gemini CLI**  | `.gemini/skills`  | `~/.gemini/skills` |
+| **Codex**       | `.agents/skills`   | `~/.codex/skills` |
+| **Grok**        | `.grok/skills`     | `~/.grok/skills` |
+| **opencode**    | `.opencode/skills` | `~/.config/opencode/skills` |
+| **Antigravity** | `.agent/skills`    | `~/.gemini/antigravity/skills` |
+| **Antigravity CLI** | `.agents/skills` | `~/.gemini/config/skills` |
+| **Junie**       | `.junie/skills`    | `~/.junie/skills` |
+| **Cline**       | `.cline/skills`    | `~/.cline/skills` |
+| **Devin**       | `.devin/skills`    | `~/.config/devin/skills` |
+| **Pi**          | `.pi/skills`       | `~/.pi/agent/skills` |
+| **Muse Code**   | `.agents/skills`   | `~/.config/muse/skills` |
+| **Kilo Code**   | `.kilo/skills`     | `~/.kilo/skills` |
+| **AMP**         | `.agents/skills`   | `~/.config/agents/skills` |
+| **Roo Code**    | `.roo/skills`      | `~/.roo/skills` |
+
+Project installs are added inside the current repository. Global installs are added under your home directory and are shared across projects.
+
+## Using Installed Skills
+
+Once a skill is installed, AI DevKit places it where the selected agent environment can load it. Then ask the agent to use the skill by name.
+
+### How It Works
+
+When your AI agent starts a session, it reads the `SKILL.md` files from your project's skill directories. These files contain instructions that teach the agent new capabilities, patterns, or best practices.
+
+### Example Usage
+
+Let's say you installed a `frontend-design` skill. You can now ask your agent:
+
+> "Use the frontend-design skill to create a responsive navigation component"
+
+Or simply reference the concepts the skill teaches:
+
+> "Build a card component following modern design patterns"
+
+The agent will apply the techniques, conventions, and examples defined in the skill's instructions.
+
+### Tips for Using Skills
+
+- **Be explicit**: Mention the skill by name if you want the agent to use specific techniques from it
+- **Check skill contents**: Read the `SKILL.md` file to understand what capabilities it provides
+- **Combine skills**: Multiple skills can work together—install several to expand your agent's knowledge
+
+## Commands
+
+### `ai-devkit skill add`
+
+Install one or more skills from a registry.
+
+**Syntax:**
+
+```bash
+ai-devkit skill add [registry-repo] [skill-name]
+```
+
+**Parameters:**
+
+- `[registry-repo]`: The registry identifier (e.g., `anthropics/skills`). Omit only when using `--built-in`.
+- `[skill-name]`: Optional skill name to install directly (e.g., `frontend-design`)
+
+**Options:**
+
+| Option | Description |
+|--------|-------------|
+| `--built-in` | Install all AI DevKit built-in skills |
+| `-g, --global` | Install the skill into configured global skill paths in your home directory |
+| `-e, --env <environment...>` | Limit a global install to specific environments; only valid with `--global` |
+| `--mode <copy\|link>` | Copy the skill folder or symlink it (default: `link`). For project installs the mode is saved to the skill's entry in `.ai-devkit.json` |
+
+**Examples:**
+
+```bash
+# Install a specific skill into the current project
+ai-devkit skill add anthropics/skills frontend-design
+
+# Browse and select one or more skills interactively
+ai-devkit skill add anthropics/skills
+
+# Install all AI DevKit built-in skills
+ai-devkit skill add --built-in
+
+# Install globally for all configured global environments
+ai-devkit skill add anthropics/skills frontend-design --global
+
+# Install globally for specific environments only
+ai-devkit skill add anthropics/skills frontend-design --global --env claude codex
+
+# Install a real copy of the skill folder instead of a symlink
+ai-devkit skill add anthropics/skills frontend-design --mode copy
+```
+
+This command will:
+
+1. Validate the registry identifier
+2. Fetch the merged registry list, or use the built-in AI DevKit registry when `--built-in` is passed
+3. Clone or refresh the cached registry in `~/.ai-devkit/skills/`
+4. Resolve the skill name directly, or prompt you to select one or more skills in interactive terminals
+5. Install the skill into the selected project or global environment paths
+
+**Notes:**
+
+- If you omit `[skill-name]` in an interactive terminal, AI DevKit shows a multi-select prompt
+- In non-interactive environments, `[skill-name]` is required
+- `--env` can only be used together with `--global`
+- An already-installed skill is not reinstalled. If you pass `--mode copy` for a skill that is installed as a symlink, the mode is saved and AI DevKit tells you to run `ai-devkit install --overwrite` to replace the symlink with a copy
+
+### `ai-devkit skill add-registry`
+
+Register a third-party skill registry in the current project or global configuration:
+
+```bash
+ai-devkit skill add-registry my-org/skills https://github.com/my-org/agent-skills.git
+ai-devkit skill add-registry my-org/skills https://github.com/my-org/agent-skills.git --global
+ai-devkit skill add-registry my-org/local-skills ../local-registry
+```
+
+Local sources accept absolute paths, `./`, `../`, or explicit `file:` URLs. AI DevKit resolves them when registered, stores a canonical absolute `file:` URL, and reads the folder in place without cloning, pulling, writing, or deleting it. If the folder moves, re-add it with `--force`.
+
+Use `--global` to write the registry to `~/.ai-devkit/.ai-devkit.json`. If the same registry ID already points to another source, use `--force` to replace it:
+
+```bash
+ai-devkit skill add-registry my-org/skills https://github.com/my-org/new-skills.git --force
+```
+
+Registry IDs use the `organization/repository` format. Each segment may contain letters, numbers, underscores, and hyphens.
+
+### `ai-devkit skill remove-registry`
+
+Unregister a third-party skill registry from the current project, or from global configuration with `--global`:
+
+```bash
+ai-devkit skill remove-registry my-org/skills
+ai-devkit skill remove-registry my-org/skills --global
+```
+
+Removal also deletes that registry's focused search-index entries. With `--global`, it may delete only the registry's ID-derived cache directory under `~/.ai-devkit/skills/`. A configured local source folder is never a deletion target. Default registries are structurally protected; the built-in `codeaholicguy/ai-devkit` registry is explicitly protected.
+
+### `ai-devkit skill list`
+
+List skills installed in the current project, or inspect skills installed across known global environment paths.
+
+**Syntax:**
+
+```bash
+ai-devkit skill list
+
+# List skills across every known global skill path
+ai-devkit skill list --global
+
+# Limit the global scan to selected environments
+ai-devkit skill list --global --env claude codex
+```
+
+| Option | Description |
+|--------|-------------|
+| `-g, --global` | List skills installed in known global skill paths under your home directory |
+| `-e, --env <environment...>` | Limit global listing to selected environments; only valid with `--global` |
+
+**Example Output:**
+
+```
+Installed Skills:
+
+  Skill Name       Registry              Environments
+  ────────────────────────────────────────────────────
+  frontend-design  anthropics/skills     cursor, claude
+  api-patterns     vercel-labs/agent-skills  cursor, claude
+
+Total: 2 skill(s)
+```
+
+The list shows:
+
+- **Skill Name**: The installed skill's name
+- **Registry**: The source registry where the skill came from
+- **Environments**: Which AI environments have this skill installed
+
+Without `--global`, output and behavior remain project-local. With `--global`, the table instead shows each valid skill's environment and `~/...` path provenance. A directory is listed only when it contains `SKILL.md`; missing roots, broken symlinks, non-skill files, and invalid skill directories are ignored. If the same skill is installed at multiple global paths, each path is shown separately. Environments configured with the same global path are grouped on one row. Global listing is read-only and does not require a project configuration or an interactive terminal.
+
+### `ai-devkit skill remove`
+
+Remove a skill from your project or from supported global skill locations.
+
+**Syntax:**
+
+```bash
+ai-devkit skill remove <skill-name>
+ai-devkit skill remove <skill-name> --global [--env <environment...>]
+```
+
+**Example:**
+
+```bash
+ai-devkit skill remove frontend-design
+
+# Remove from every supported global skill location
+ai-devkit skill remove frontend-design --global
+
+# Remove only from selected global environments
+ai-devkit skill remove frontend-design --global --env claude codex
+```
+
+| Option | Description |
+|--------|-------------|
+| `-g, --global` | Remove the skill from global skill paths under your home directory |
+| `-e, --env <environment...>` | Limit global removal to specific environments; only valid with `--global` |
+
+Without `--global`, existing project removal behavior is unchanged: AI DevKit reads `.ai-devkit.json`, removes the skill from configured project environments, and updates the project skill metadata after a successful removal. `--env` without `--global` is rejected.
+
+With `--global`, omitting `--env` removes the skill from every environment in the Supported Environments table that declares a global skill path. This is deterministic and does not prompt, including in non-interactive shells. Repeated paths are processed once. Missing skills are reported as nothing to remove and do not cause an error.
+
+Global removal deletes only the named skill entry directly inside known, configured global skill roots under your home directory. Symlinks are removed without following their targets, copied skill directories are removed in place, and `~/.ai-devkit/skills/` is never deleted or modified. If one location fails, AI DevKit continues with the remaining locations and exits with an error summarizing the failed locations.
+
+The cached copy remains in `~/.ai-devkit/skills/` so you can quickly reinstall it in other projects without re-downloading.
+
+Use the Supported Environments table above to see the global path associated with each environment code.
+
+### `ai-devkit skill update`
+
+Update skills from registries to get the latest changes.
+
+**Syntax:**
+
+```bash
+# Update all cached skill registries
+ai-devkit skill update
+
+# Update a specific registry
+ai-devkit skill update <registry-id>
+```
+
+**Parameters:**
+
+- `<registry-id>` (optional): The registry identifier to update (e.g., `anthropics/skills`)
+
+**Examples:**
+
+```bash
+# Update all registries
+ai-devkit skill update
+
+# Update only the anthropics/skills registry
+ai-devkit skill update anthropics/skills
+```
+
+**How It Works:**
+
+The update command pulls the latest changes from skill registries using `git pull`. It:
+
+1. Scans the cache directory (`~/.ai-devkit/skills/`) for installed registries
+2. Checks if each directory is a git repository
+3. Runs `git pull` to fetch the latest changes
+4. Continues updating even if some registries fail
+5. Reports a summary of results
+
+**When to Update:**
+
+- **After installing skills**: Get the latest improvements and bug fixes
+- **Periodically**: Keep skills up-to-date with community contributions
+- **Before starting new projects**: Ensure you're using the latest patterns
+
+**Notes:**
+
+- Updates only affect the cached registries in `~/.ai-devkit/skills/`
+- Since skills are symlinked, updates are immediately available in all projects using those skills
+- Non-git directories are skipped (e.g., manually created folders)
+- The command continues even if some registries fail to update
+
+### `ai-devkit skill find`
+
+Search for skills across all configured registries using keyword matching.
+
+**Syntax:**
+
+```bash
+ai-devkit skill find <keyword>
+```
+
+**Parameters:**
+
+- `<keyword>`: The search term to match against skill names and descriptions
+
+**Options:**
+
+| Option | Description |
+|--------|-------------|
+| `--refresh` | Force rebuild the skill index before searching |
+| `--limit <n>` | Show at most `n` of the best matches (default: 10) |
+| `--all` | Show every match |
+
+**Example:**
+
+```bash
+ai-devkit skill find frontend
+```
+
+**How It Works:**
+
+The find command searches a pre-built skill index that aggregates skills from all known registries:
+
+1. Checks for a cached local skill index
+2. Matches your keyword against skill names and descriptions
+3. Ranks matches: exact name first, then names starting with the keyword, then names containing it, then description-only matches
+4. Shows the top 10 (or `--limit <n>`, or `--all`) with skill name, registry, and description, and says how many more matched
+5. Prints the exact `ai-devkit skill add <registry> <skill-name>` command for each result shown, ready to copy
+
+**When to Use `--refresh`:**
+
+- After adding custom registries to your configuration
+- When you expect new skills to be available
+- If the skill index seems outdated
+
+**Notes:**
+
+- AI DevKit stores the local skill index at `~/.ai-devkit/skills.json`
+- Cached index data is reused for up to 24 hours
+- If no local index exists, AI DevKit first tries to download a seed index, then falls back to rebuilding it
+- Use `--refresh` to force a rebuild before searching
+- Search is case-insensitive and matches partial words
+
+### `ai-devkit skill rebuild-index`
+
+Rebuild the skill index from all registries.
+
+**Syntax:**
+
+```bash
+ai-devkit skill rebuild-index
+ai-devkit skill rebuild-index --output <path>
+```
+
+**Options:**
+
+| Option | Description |
+|--------|-------------|
+| `--output <path>` | Write the rebuilt index to a custom output path |
+
+**Examples:**
+
+```bash
+# Rebuild the default local index
+ai-devkit skill rebuild-index
+
+# Write the rebuilt index to a custom file
+ai-devkit skill rebuild-index --output ./tmp/skills.json
+```
+
+This command is mainly useful for CI, automation, or debugging index issues.
+
+## Skill Registry
+
+AI DevKit uses a centralized registry file to map registry identifiers to their GitHub repositories. The registry is hosted at:
+
+```
+https://raw.githubusercontent.com/Codeaholicguy/ai-devkit/main/skills/registry.json
+```
+
+### Custom Registries
+
+You can add your own registries by editing the global AI DevKit config at `~/.ai-devkit/.ai-devkit.json`. Custom registries use the same `registries` map format and are merged with the default registry list. If a registry ID exists in both, your custom entry takes priority.
+
+**Example:**
+
+```json
+{
+  "registries": {
+    "my-org/skills": "git@gitlab.com:my-org/skills.git",
+    "me/personal-skills": "https://github.com/me/personal-skills.git"
+  }
+}
+```
+
+Once saved, you can install from your custom registry like any other:
+
+```bash
+ai-devkit skill add my-org/skills internal-skill
+```
+
+### Registry Format
+
+The registry is a simple JSON file:
+
+```json
+{
+  "registries": {
+    "anthropics/skills": "https://github.com/anthropics/skills.git",
+    "vercel-labs/agent-skills": "https://github.com/vercel-labs/agent-skills.git"
+  }
+}
+```
+
+Each registry repository should follow this structure:
+
+```
+skills/
+├── skill-name-1/
+│   ├── SKILL.md           # Required: Main skill instructions
+│   ├── scripts/           # Optional: Helper scripts
+│   ├── examples/          # Optional: Usage examples
+│   └── resources/         # Optional: Additional assets
+├── skill-name-2/
+│   └── SKILL.md
+└── ...
+```
+
+## Creating Your Own Skills
+
+Want to create your own skills? Here's what you need:
+
+### SKILL.md Structure
+
+Every skill must have a `SKILL.md` file with YAML frontmatter:
+
+```markdown
+---
+name: my-awesome-skill
+description: A brief description of what this skill does
+---
+
+# My Awesome Skill
+
+Detailed instructions for the AI agent on how to use this skill...
+```
+
+### Publishing Skills
+
+1. Create a GitHub repository with the `skills/` directory structure
+2. Add your skills with proper `SKILL.md` files
+3. Open a PR to add your registry to the [ai-devkit registry](https://github.com/Codeaholicguy/ai-devkit/blob/main/skills/registry.json)
+
+## Caching & Performance
+
+To provide fast installation times, AI DevKit caches skill registries locally:
+
+- **Cache Location**: `~/.ai-devkit/skills/<registry-id>/`
+- **Behavior**: Repositories are cloned once and reused across projects
+
+## Troubleshooting
+
+### "Registry not found"
+
+The registry identifier doesn't exist in the skill registry. Check available registries:
+
+```bash
+# View the registry file
+curl https://raw.githubusercontent.com/Codeaholicguy/ai-devkit/main/skills/registry.json
+```
+
+### "Skill not found"
+
+The skill doesn't exist in the specified registry. Explore the registry repository on GitHub to see available skills.
+
+### "No skill-capable environments configured"
+
+Your project doesn't have any skill-compatible environments. Run `ai-devkit init` and select an environment from the Supported Environments table above.
+
+### "SKILL.md not found"
+
+The skill folder exists but doesn't contain a `SKILL.md` file, meaning it's not a valid skill. Contact the registry maintainer.
+
+### "You have unstaged changes" or "uncommitted changes"
+
+The registry has local modifications that prevent git pull. To fix:
+
+```bash
+# Navigate to the registry
+cd ~/.ai-devkit/skills/<registry-id>
+
+# Check what changed
+git status
+
+# Option 1: Discard local changes
+git reset --hard HEAD
+
+# Option 2: Stash changes and update
+git stash
+git pull
+git stash pop
+
+# Then retry the update
+ai-devkit skill update <registry-id>
+```
+
+### "Registry not found in cache"
+
+You're trying to update a registry that hasn't been installed yet. Install a skill from that registry first:
+
+```bash
+ai-devkit skill add <registry-id> <skill-name>
+```
+
+### Network or timeout errors
+
+If updates fail due to network issues:
+
+1. Check your internet connection
+2. Try updating a specific registry instead of all at once
+3. Increase timeout by manually pulling:
+
+```bash
+cd ~/.ai-devkit/skills/<registry-id>
+git pull
+```
+
+### "Not a git repository" (skipped)
+
+This is normal for manually created directories in the skills cache. The update command will skip these automatically. If you want to convert a manual directory to use git:
+
+```bash
+cd ~/.ai-devkit/skills/<registry-id>
+git init
+git remote add origin <git-url>
+git pull origin main
+```

@@ -1,0 +1,343 @@
+---
+title: Channel
+description: Connect AI agents with Telegram or a private Slack Socket Mode app
+slug: channel
+section: features
+order: 5
+---
+
+The `channel` command lets you bridge a running AI agent to Telegram or Slack. Once connected, you can send prompts to your agent and receive responses directly from your messaging app — no need to be at your terminal.
+
+## Prerequisites
+
+- **AI DevKit** installed globally (see [Getting Started](/docs/1-getting-started))
+- **A running AI agent** of any detected harness type — Claude Code, Codex, Gemini CLI, Copilot, opencode, Pi, Grok CLI, Kiro, Antigravity CLI, Devin, or Muse Code — listed by `ai-devkit agent list` (see [Agent Management](/docs/8-agent-management))
+- **Telegram:** a bot token from [@BotFather](https://t.me/BotFather), or
+- **Slack:** a custom single-workspace app with Socket Mode, an `xapp-` app token, and an `xoxb-` bot token
+- **Terminal environment**: The agent must be running in **tmux**, **WezTerm**, **Ghostty**, **iTerm2**, or **Apple Terminal** (same requirements as `agent open`)
+
+## How It Works
+
+The channel bridge connects two sides:
+
+1. **Input**: Messages sent to the configured Telegram bot or Slack app are forwarded to the agent's terminal as keystrokes.
+2. **Output**: New messages in the agent's conversation are polled and sent back to the active messaging conversation.
+
+### Telegram authorization and routing
+
+The first Telegram user to message the bot is automatically authorized. All other users are rejected. This means:
+- Only **one person** can control the agent per bridge session.
+- If you restart the bridge, the first user to message again becomes the authorized user.
+- There is no password or additional authentication — anyone who knows your bot's username can attempt to message it, but only the first user's messages are forwarded.
+
+> **Tip**: Keep your bot username private, or use Telegram's bot settings to restrict who can find and message your bot.
+
+### Slack authorization and routing
+
+Slack uses a private, single-workspace Socket Mode app. It is DM-only and does not expose a public HTTP endpoint. Slack user authorization is not enabled: any workspace member who can DM the app can send text to the connected agent. The first DM received after bridge startup becomes the response destination until the bridge restarts.
+
+## Commands
+
+### Connect a Channel
+
+Configure a Telegram bot or private Slack app:
+
+```bash
+ai-devkit channel connect telegram
+ai-devkit channel connect telegram --name personal
+ai-devkit channel connect slack --name work-slack
+```
+
+For Telegram, AI DevKit prompts for a bot token and validates it with the Telegram API. For Slack, it prompts for an `xapp-` app token and an `xoxb-` bot token, then validates both credentials before saving the configuration.
+
+> **Note**: Channel configuration is stored in `~/.ai-devkit/channels.json` with file mode `0600`. Tokens are local plaintext secrets: never commit, paste into chat, or include this file in support logs.
+
+### Configure a private Slack app
+
+Slack support is a local-first, DM-only Socket Mode integration for one workspace. It does not expose an HTTP endpoint and is not a distributable OAuth or Marketplace app.
+
+> **Proof-of-concept security warning:** Slack user authorization is not enabled. Any member of the configured workspace who can DM the app can send text toward the connected local agent. Use only in a disposable/private workspace with a non-sensitive agent session.
+
+Create an app from this manifest in the [Slack app dashboard](https://api.slack.com/apps):
+
+```yaml
+_metadata:
+  major_version: 1
+display_information:
+  name: AI DevKit
+features:
+  app_home:
+    messages_tab_enabled: true
+    messages_tab_read_only_enabled: false
+  bot_user:
+    display_name: AI DevKit
+    always_online: false
+oauth_config:
+  scopes:
+    bot:
+      - chat:write
+      - im:history
+settings:
+  event_subscriptions:
+    bot_events:
+      - message.im
+  interactivity:
+    is_enabled: true
+  socket_mode_enabled: true
+  org_deploy_enabled: false
+  is_hosted: false
+```
+
+Before copying tokens, verify every required setting in the Slack app dashboard. Do not skip this checklist even when you created the app from the manifest:
+
+- **Socket Mode:** Under **Socket Mode**, confirm **Enable Socket Mode** is on.
+- **App Home:** Under **App Home**, confirm the **Messages Tab** is enabled and users are allowed to send messages.
+- **Bot scopes:** Under **OAuth & Permissions → Bot Token Scopes**, confirm both `chat:write` and `im:history` are present.
+- **DM event:** Under **Event Subscriptions → Subscribe to bot events**, confirm `message.im` is present, then save the change. Without this event, the bridge can connect successfully but never receive your DMs.
+- **Interactivity:** Under **Interactivity & Shortcuts**, confirm interactivity is enabled. This is required for answering agent questions from Slack.
+
+Then complete setup in this order:
+
+1. Under **Install App**, select **Install to Workspace**. If the app was already installed before you added scopes or events, select **Reinstall to Workspace** and approve the permissions again. Existing bot tokens do not gain newly added scopes until the app is reinstalled.
+2. From **OAuth & Permissions**, copy the **Bot User OAuth Token** beginning with `xoxb-`.
+3. Under **Basic Information → App-Level Tokens**, create an `xapp-` token with the `connections:write` scope.
+4. Run `ai-devkit channel connect slack --name work-slack`. Both secrets are entered through hidden prompts and validated before storage.
+5. Start the bridge with `ai-devkit channel start work-slack --agent <name> --debug`.
+6. In Slack, open the app from **Apps**, select its **Messages** tab, and send a DM. The first message is forwarded immediately; you do not need a pairing code or an `@mention`.
+
+When setup is correct, the debug output includes `Received message from chat ID` after your first DM. A repeating `poll skip: no active chat yet` message means the bridge is running but has not received a usable Slack DM.
+
+The first DM used after startup becomes that bridge process's response destination. Restart the bridge to switch conversations. This routing choice is not persisted and is not user authorization. Public channels, mentions, Slack Connect, files, OAuth, and multi-workspace installs are intentionally unsupported.
+
+By default, the channel is named `telegram`. Use `--name <name>` when you want multiple Telegram bot connections, such as `personal` and `team`. Channel names must use lowercase letters, numbers, and hyphens.
+
+If you reuse the same channel name, AI DevKit updates that channel. A Telegram bot token can only be configured for one channel name.
+
+### List Channels
+
+Show all configured channels and their status.
+
+```bash
+ai-devkit channel list
+```
+
+**Table output includes:**
+
+| Name | Type | Status | Identity | Authorized | Bridge | Created |
+|------|------|--------|----------|------------|--------|---------|
+| `telegram` | `telegram` | enabled | `@my_bot` | yes | running | 4/21/2026 |
+
+### Start the Bridge
+
+Start the configured channel bridge between the messaging provider and a running agent.
+
+```bash
+ai-devkit channel start --agent <name>
+ai-devkit channel start <channel-name> --agent <name>
+```
+
+**Options:**
+
+| Option | Description |
+|--------|-------------|
+| `--agent <name>` | **(Required)** Name of the running agent to bridge |
+| `--daemon` | Start the bridge in the background |
+| `--debug` | Enable debug logging for troubleshooting |
+
+Debug output is printed to the same terminal where the bridge is running. It includes timestamps for message polling, provider delivery, and terminal writes. Look for lines prefixed with `channel` to trace message flow.
+
+If you have one channel configured, the channel name is optional. If you have multiple channels, specify which one to start.
+
+Foreground bridges keep running in the current terminal. Press `Ctrl+C` to stop a foreground bridge.
+
+Daemon bridges run in the background and return control to your shell. Use `channel stop` to stop a daemon bridge.
+
+**Example:**
+
+```bash
+# Start the only configured Telegram channel in the foreground
+ai-devkit channel start --agent my-project
+
+# Start a named channel in the foreground
+ai-devkit channel start personal --agent my-project
+
+# Start a named channel in the background
+ai-devkit channel start personal --agent my-project --daemon
+```
+
+```
+✔ Bridge started: Telegram @my_bot <-> Agent "my-project" (PID: 12345)
+ℹ Send a message to your Telegram bot to start chatting.
+ℹ Press Ctrl+C to stop.
+```
+
+For daemon mode, AI DevKit prints the bridge PID and log path:
+
+```
+✔ Channel bridge daemon started for "personal" (PID: 12345).
+ℹ Logs: ~/.ai-devkit/channel-logs/personal.log
+ℹ Run "ai-devkit channel stop personal" to stop it.
+```
+
+### Stop the Bridge
+
+Stop a running daemon bridge.
+
+```bash
+ai-devkit channel stop
+ai-devkit channel stop <channel-name>
+```
+
+If exactly one bridge is running, the channel name is optional. If multiple bridges are running, specify the channel name.
+
+### Show Channel Status
+
+Display details about configured channels.
+
+```bash
+ai-devkit channel status
+ai-devkit channel status <channel-name>
+```
+
+**Example output:**
+
+```
+telegram (telegram)
+  Enabled: yes
+  Bot: @my_bot
+  Authorized: yes
+  Bridge: running (PID: 12345, agent: my-project)
+  Logs: ~/.ai-devkit/channel-logs/telegram.log
+  Configured: 2026-04-21T10:30:00.000Z
+```
+
+> **Note**: `channel list` shows a summary table of all channels. `channel status` shows detailed configuration for each channel.
+
+### Disconnect a Channel
+
+Remove a channel configuration.
+
+```bash
+ai-devkit channel disconnect telegram
+```
+
+You will be asked to confirm before the configuration is removed.
+
+## Using Channels From Agent Console
+
+After configuring a Telegram channel, you can start and stop channel bridges from the interactive agent console. For the full console workflow, see [Agent Console](/docs/13-agent-console).
+
+```bash
+ai-devkit agent console
+```
+
+Select an agent, press `c`, choose a configured channel, then press `Enter`. The console starts the bridge in the background. Press `C` on the selected agent to stop its running channel bridge.
+
+If no channels are configured, the console shows:
+
+```
+No channels configured. Run channel connect first.
+```
+
+## Walkthrough
+
+Here is a step-by-step guide to set up a Telegram bridge. For full option details on each command, see [Commands](#commands) above.
+
+1. **Create a Telegram bot**
+   - Open Telegram and search for **@BotFather**
+   - Send `/newbot` and follow the prompts to get a bot token
+   - The token looks like `123456789:ABCdefGhIJKlmNoPQRsTUVwxyz` (a number, colon, then a hash). Copy the **entire string** including the colon.
+
+2. **Connect the channel**
+   ```bash
+   ai-devkit channel connect telegram
+   ```
+   Paste your bot token when prompted.
+
+3. **Start an AI agent** (if not already running)
+   ```bash
+   claude  # or codex
+   ```
+   The agent name is derived from your working directory (e.g., running `claude` in `~/code/my-project` creates an agent named `my-project`). Verify with:
+   ```bash
+   ai-devkit agent list
+   ```
+
+4. **Start the bridge**
+   ```bash
+   ai-devkit channel start --agent my-project
+   ```
+   To keep the bridge running in the background, use:
+   ```bash
+   ai-devkit channel start telegram --agent my-project --daemon
+   ```
+
+5. **Chat from Telegram**
+   Open your bot in Telegram and send a message (e.g., "What files are in this project?"). You should see:
+   - A typing indicator while the agent processes your message
+   - The agent's response appearing as a Telegram message from your bot
+
+   If nothing appears after 30 seconds, check the [Troubleshooting](#troubleshooting) section below.
+
+## Troubleshooting
+
+### "No running agents detected"
+Ensure your AI agent (e.g., `claude`) is running. Use `ai-devkit agent list` to verify.
+
+### "Cannot find terminal for agent"
+The agent must be running in a supported terminal (tmux, WezTerm, Ghostty, iTerm2, or Apple Terminal). VS Code terminal is not supported for external control. See [Agent Management — Troubleshooting](/docs/8-agent-management#troubleshooting) for more details.
+
+### "No Telegram channel configured"
+Run `ai-devkit channel connect telegram` first to set up your bot token.
+
+### Agent process exits while bridge is running
+The bridge continues running but stops receiving new agent responses. You will not see an error — messages from Telegram are still sent to the terminal, but there is no agent to process them. Stop the foreground bridge with `Ctrl+C`, or stop a daemon bridge with `ai-devkit channel stop <channel-name>`, then restart after relaunching your agent.
+
+### "Multiple Telegram channels configured"
+Specify which channel to start:
+
+```bash
+ai-devkit channel start personal --agent my-project
+```
+
+### "Multiple channel bridges are running"
+Specify which bridge to stop:
+
+```bash
+ai-devkit channel stop personal
+```
+
+### Slack bridge is using another DM
+
+Each bridge process routes responses to the first DM it receives. Restart the bridge, then send a message from the desired DM to switch conversations.
+
+### Slack app cannot connect
+
+- Confirm Socket Mode, interactivity, and App Home messages are enabled.
+- Confirm the app-level token starts with `xapp-` and has `connections:write`.
+- Confirm the installed bot token starts with `xoxb-` and has `chat:write` and `im:history`.
+- Confirm `message.im` is subscribed. Reinstall the app after changing scopes.
+- Re-run `channel connect slack --name <name>` after rotating either token.
+- Add `--debug` to the connect command to identify whether app-token validation, bot-token validation, or configuration storage failed. Credential values are redacted from these logs.
+
+Slack's `auth.test` response for bot tokens always identifies the workspace and bot user, but may omit `app_id`. AI DevKit accepts that documented response and stores the app ID only when Slack provides it.
+
+### Slack bridge connects but does not respond to DMs
+
+If debug output repeatedly shows `poll skip: no active chat yet`, the bridge has not received a usable Slack DM:
+
+1. Under **Event Subscriptions → Subscribe to bot events**, add `message.im` and save the change.
+2. Under **OAuth & Permissions → Bot Token Scopes**, add `im:history` and `chat:write`.
+3. Under **App Home**, enable the **Messages Tab** and allow users to send messages.
+4. Select **Install App → Reinstall to Workspace**. This step is mandatory after adding scopes; restarting the bridge alone is not enough.
+5. Copy the current `xoxb-` token, run `channel connect slack --name <name>` again, and restart the bridge with `--debug`.
+6. DM the app in its **Messages** tab. Channel messages and `@mentions` are not supported by this proof of concept.
+
+### Optional Slack sandbox validation
+
+Use a disposable workspace and agent because Slack user authorization is not enabled. Connect, start the bridge, send an immediate DM, exchange a short message, trigger a single-select agent question, send a response longer than 4,000 characters with fenced code, verify threaded continuation, interrupt the network to observe reconnect health, stop the bridge, disconnect the config, and revoke both tokens. Real Slack credentials are never required by the automated test suite.
+
+### Messages not appearing in Telegram
+- Ensure you are the first user to message the bot (only the first user is authorized).
+- Check that the agent has a session file by running `ai-devkit agent detail --id <name>`.
+- Use `--debug` flag when starting the bridge to see detailed logs.
