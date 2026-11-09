@@ -1,0 +1,43 @@
+{
+  "name": "web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "copy": "cp CNAME out/",
+    "build": "next build && npm run search-index && npm run copy",
+    "start": "next start",
+    "lint": "eslint",
+    "search-index": "pagefind --site out"
+  },
+  "dependencies": {
+    "@remotion/player": "^4.0.534",
+    "github-slugger": "^2.0.0",
+    "gray-matter": "^4.0.3",
+    "hast-util-to-jsx-runtime": "^2.3.6",
+    "highlight.js": "^11.11.1",
+    "next": "16.0.0",
+    "next-mdx-remote": "^5.0.0",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "rehype-highlight": "^7.0.2",
+    "rehype-slug": "^6.0.0",
+    "remark": "^15.0.1",
+    "remark-gfm": "^4.0.1",
+    "remark-parse": "^11.0.0",
+    "remark-rehype": "^11.1.2",
+    "remotion": "^4.0.534",
+    "unified": "^11.0.5"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.0.0",
+    "pagefind": "^1.5.2",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}
