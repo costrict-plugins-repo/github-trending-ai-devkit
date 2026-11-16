@@ -1,0 +1,122 @@
+{
+  "version": "0.4.2",
+  "environments": [
+    "cursor",
+    "claude",
+    "github",
+    "gemini",
+    "codex",
+    "antigravity"
+  ],
+  "createdAt": "2025-12-28T13:35:45.251Z",
+  "phases": [
+    "requirements",
+    "design",
+    "planning",
+    "implementation",
+    "testing"
+  ],
+  "skills": [
+    {
+      "registry": "codeaholicguy/ai-devkit",
+      "name": "memory"
+    },
+    {
+      "registry": "codeaholicguy/ai-devkit",
+      "name": "dev-lifecycle"
+    },
+    {
+      "registry": "codeaholicguy/ai-devkit",
+      "name": "dev-simplify"
+    },
+    {
+      "registry": "codeaholicguy/ai-devkit",
+      "name": "technical-writer"
+    },
+    {
+      "registry": "codeaholicguy/ai-devkit",
+      "name": "verify"
+    },
+    {
+      "registry": "codeaholicguy/ai-devkit",
+      "name": "tdd"
+    },
+    {
+      "registry": "codeaholicguy/ai-devkit",
+      "name": "dev-debug"
+    },
+    {
+      "registry": "codeaholicguy/ai-devkit",
+      "name": "task"
+    },
+    {
+      "registry": "codeaholicguy/ai-devkit",
+      "name": "document-code"
+    },
+    {
+      "registry": "codeaholicguy/ai-devkit",
+      "name": "security-review"
+    },
+    {
+      "registry": "vercel-labs/agent-skills",
+      "name": "react-best-practices"
+    },
+    {
+      "registry": "codeaholicguy/ai-devkit",
+      "name": "agent-communication"
+    },
+    {
+      "registry": "codeaholicguy/ai-devkit",
+      "name": "dev-worktree"
+    },
+    {
+      "registry": "codeaholicguy/ai-devkit",
+      "name": "dev-requirements"
+    },
+    {
+      "registry": "codeaholicguy/ai-devkit",
+      "name": "dev-design"
+    },
+    {
+      "registry": "codeaholicguy/ai-devkit",
+      "name": "dev-planning"
+    },
+    {
+      "registry": "codeaholicguy/ai-devkit",
+      "name": "dev-implementation"
+    },
+    {
+      "registry": "codeaholicguy/ai-devkit",
+      "name": "dev-testing"
+    },
+    {
+      "registry": "codeaholicguy/ai-devkit",
+      "name": "dev-review"
+    },
+    {
+      "registry": "vercel-labs/agent-skills",
+      "name": "web-design-guidelines"
+    },
+    {
+      "registry": "codeaholicguy/ai-devkit",
+      "name": "dev-commit"
+    },
+    {
+      "registry": "codeaholicguy/ai-devkit",
+      "name": "dev-pr"
+    },
+    {
+      "registry": "codeaholicguy/ai-devkit",
+      "name": "changelog"
+    },
+    {
+      "registry": "codeaholicguy/ai-devkit",
+      "name": "agent-management"
+    },
+    {
+      "registry": "personal/me",
+      "name": "release-ai-devkit"
+    }
+  ],
+  "updatedAt": "2026-06-27T20:37:59.097Z"
+}

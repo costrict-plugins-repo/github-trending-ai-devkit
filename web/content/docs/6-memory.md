@@ -1,0 +1,258 @@
+---
+title: Memory
+description: Give AI coding agents local long-term memory with MCP, CLI commands, and project-scoped knowledge storage.
+slug: memory
+section: features
+order: 2
+---
+
+Imagine if your coding agents could reuse the project decisions you have already made.
+
+The **Memory** service allows you to store actionable insights, coding patterns, and project guidelines. Once stored, this knowledge is available to your AI coding agents (via MCP) and to you directly via the CLI, ensuring consistency across your development workflow.
+
+## Prerequisites
+
+Before using Memory, ensure you have:
+
+- **Node.js 20.20.0 or higher** installed
+- **AI DevKit CLI** installed: `npm install -g ai-devkit` or use `npx ai-devkit@latest`
+- For MCP usage: A compatible AI coding agent or environment (Cursor, Claude Code, etc.)
+
+If this is your first AI DevKit command, complete [Getting Started](/docs/1-getting-started) first. With npx only, prefix every CLI example below with `npx ai-devkit@latest`.
+
+If `memory search` fails with a `NODE_MODULE_VERSION` error, the CLI was built with a different Node than your shell uses — see [Node.js and native modules](/docs/1-getting-started#nodejs-and-native-modules).
+
+## How It Works
+
+You can interact with Memory in three ways:
+
+1.  **Through your AI Assistant (Recommended):** Connect via MCP so your AI can automatically search for relevant context and save new rules as you work.
+2.  **Through the CLI:** Manually store or retrieve knowledge directly from your terminal—perfect for quick lookups or scripting.
+3.  **Through Skills:** Install the memory skill to teach your AI agent how to use CLI commands when MCP is unavailable.
+
+## Using with AI Agents (MCP)
+
+This is the most powerful way to use Memory. Your AI (Cursor, Claude, etc.) gains "tools" to save and retrieve information naturally.
+
+### Setup
+
+Run `ai-devkit setup` once per machine. It wires the memory MCP server — named `ai-devkit-memory`, launched with `npx -y @ai-devkit/memory` — into the global config of every MCP-capable agent it detects:
+
+| Agent | MCP wiring |
+|-------|-----------|
+| Claude Code, Codex, Gemini, Cursor, opencode, Grok | Automatic via `setup` |
+| Pi | No MCP support by design — use the `memory` skill or `ai-devkit memory` CLI instead |
+
+`ai-devkit status` reports the wiring state per agent, so you can confirm the server is connected before relying on it.
+
+If an agent's config is managed manually, you can still add the server yourself:
+
+```json
+{
+  "mcpServers": {
+    "ai-devkit-memory": {
+      "command": "npx",
+      "args": ["-y", "@ai-devkit/memory"]
+    }
+  }
+}
+```
+
+### Usage Examples
+
+Once connected, you can talk to your AI naturally:
+
+**Storing Knowledge:**
+> "We just decided that all API responses must handle BigInt serialization. Please save this rule to memory with the tag #backend."
+
+You can also ask your AI agent to store knowledge directly when the memory skill is available.
+
+**Example:**
+> Remember that we always use `BigInt.toString()` before sending API responses containing large numbers.
+
+The AI will prompt you for a title and tags, then save the knowledge to memory.
+
+**Retrieving Knowledge:**
+> "I'm building a new endpoint. Check memory for any API standards I need to follow."
+
+The AI will intelligently rank results based on your current task and available tags.
+
+## Using the CLI
+
+You don't need an AI agent to use Memory. The `ai-devkit` CLI has built-in commands to manage your knowledge base.
+
+### Storing Knowledge
+
+Found a solution to a tricky bug? Save it immediately:
+
+```bash
+ai-devkit memory store \
+  --title "Fix: Docker connection refused on M1 Mac" \
+  --content "Enable 'Use Rosetta for x86/amd64 emulation' in Docker Desktop settings." \
+  --tags "docker,mac,infra" \
+  --scope "global"
+```
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `--title` | Yes | A short, descriptive title |
+| `--content` | Yes | The detailed knowledge to store |
+| `--tags` | No | Comma-separated tags for categorization |
+| `--scope` | No | `global` (default), `project:<name>`, or `repo:<org/repo>` |
+
+> 💡 **Tip:** Run `ai-devkit memory store --help` to see all available options.
+
+### Searching Knowledge
+
+Need to recall a specific command or pattern? Search for it:
+
+```bash
+ai-devkit memory search --query "docker m1"
+```
+
+**Output:**
+```json
+{
+  "query": "docker m1",
+  "results": [
+    {
+      "id": "...",
+      "title": "Fix: Docker connection refused on M1 Mac",
+      "content": "Enable 'Use Rosetta for x86/amd64 emulation' in Docker Desktop settings.",
+      "tags": ["docker", "mac", "infra"],
+      "scope": "global",
+      "score": 5.2
+    }
+  ]
+}
+```
+
+Useful options:
+
+- `--limit <n>` to control how many results are returned (1–20, default 5)
+- `--scope <scope>` to filter results to one scope
+- `--tags <tags>` to boost matches using context tags
+- `--table` to print a compact table with `id`, `title`, and `scope`
+- `--explain` to include the lexical and semantic rank details behind each result
+
+> **Note:** If no results are found, the `results` array is empty.
+
+### Updating Knowledge
+
+If an existing memory item is still useful but needs corrections or more detail, update it by ID:
+
+```bash
+ai-devkit memory update \
+  --id "<memory-id>" \
+  --title "Fix: Docker connection refused on Apple Silicon" \
+  --content "Enable 'Use Rosetta for x86/amd64 emulation' in Docker Desktop settings, then restart Docker Desktop."
+```
+
+You can also replace tags or scope during an update:
+
+```bash
+ai-devkit memory update \
+  --id "<memory-id>" \
+  --tags "docker,mac,infra" \
+  --scope "global"
+```
+
+### Semantic Search
+
+Memory search uses lexical matching by default. Set `memory.semantic` to `true` in the project `.ai-devkit.json` (or in the global config for CLI use across projects) to enable hybrid lexical and local semantic matching. The first semantic search (or `semantic download`) fetches a small embedding model that runs entirely on your machine. Manage the model and index with:
+
+```bash
+ai-devkit memory semantic status     # model and embedding index state
+ai-devkit memory semantic download   # download the embedding model (also for offline use)
+ai-devkit memory reembed             # recompute stale embeddings
+ai-devkit memory reembed --force     # recompute all embeddings
+```
+
+## Using the Memory Skill
+
+If MCP is not available in your environment, you can install the **memory skill** to teach your AI agent how to use memory via CLI commands.
+
+### Installing the Skill
+
+```bash
+ai-devkit skill add codeaholicguy/ai-devkit memory
+```
+
+This installs the memory skill into your project's skill directory (e.g., `.cursor/skills/memory/`).
+
+### What the Skill Provides
+
+Once installed, your AI agent will have access to:
+
+- **Detailed CLI command reference** for `memory store` and `memory search`
+- **Parameter documentation** with examples for all options
+- **Best practices** for crafting titles, content, and tags
+- **Troubleshooting tips** for common issues
+
+### When to Use the Skill
+
+The memory skill is ideal when:
+
+- MCP is not configured or unavailable
+- Your AI agent needs detailed command syntax reference
+- You want consistent memory usage patterns across your team
+
+> **Tip:** The skill works with all skill-capable AI environments: Cursor, Claude Code, GitHub Copilot, Codex, opencode, Antigravity, Junie, Cline, Devin, Grok, Pi, Kilo Code, and Roo Code.
+
+## Organizing Your Knowledge
+
+To keep your memory effective, use **Tags** and **Scopes**.
+
+### Tags
+Categorize your entries so they trigger in the right context.
+- `["typescript", "react"]` -> For frontend rules.
+- `["deployment", "ci"]` -> For DevOps procedures.
+
+### Scopes
+
+Control where your knowledge applies:
+
+| Scope | CLI Flag | Description |
+|-------|----------|-------------|
+| Global | `--scope global` | Applies to all your projects (default) |
+| Project | `--scope project:my-app` | Specific to a project |
+| Repo | `--scope repo:org/repo` | Specific to a git repository |
+
+**Example:**
+```bash
+ai-devkit memory store \
+  --title "Use pnpm for this monorepo" \
+  --content "This project uses pnpm workspaces. Always use 'pnpm' instead of 'npm'." \
+  --scope "repo:myorg/my-monorepo"
+```
+
+> **Note:** AI agents automatically prioritize knowledge matching the scope of your current working directory.
+
+## Privacy & Storage
+
+Your memory is **100% local**.
+
+By default, Memory stores data in a local SQLite database at `~/.ai-devkit/memory.db`.
+
+If you use the `ai-devkit` CLI, you can override that location in your `.ai-devkit.json` file with `memory.path`. When `memory.path` is set, CLI commands use that path instead. Absolute paths are used as-is, and relative paths are resolved from the directory that contains `.ai-devkit.json`.
+
+```json
+{
+  "memory": {
+    "path": ".ai-devkit/project-memory.db"
+  }
+}
+```
+
+No data is sent to the cloud, ensuring your proprietary coding patterns remain private.
+
+Because the database is just a local file, you can copy it to another machine and keep using the same memory there.
+
+Plugins can also read the configured memory database path through `runtime.getMemoryDbPath()`. This is useful for plugin dashboards and local tools that need to inspect the same memory database as the CLI.
+
+## Next Steps
+
+- **[Skills](/docs/7-skills)**: Learn how to create reusable skill templates
+- **[Dev Lifecycle](/docs/10-dev-lifecycle-skill)**: Combine memory with the `task` skill for durable workflow progress
+- **[Plugins](/docs/14-plugins)**: Add optional CLI commands that can use the memory runtime
+- **[Getting Started](/docs/1-getting-started)**: New to AI DevKit? [Start here](/docs/1-getting-started)

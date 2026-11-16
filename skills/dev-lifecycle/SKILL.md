@@ -1,0 +1,129 @@
+---
+name: dev-lifecycle
+description: AI DevKit · Orchestrator for structured SDLC phase skills. Use when the user wants to run the full lifecycle or choose the next phase across requirements, design, planning, implementation, testing, and review.
+---
+
+# Dev Lifecycle
+
+Coordinate the phase-specific AI DevKit skills instead of running phase details directly.
+
+Required phase skills:
+
+- `dev-worktree` for feature workspace setup and resume.
+- `dev-requirements` for phases 1-2: new requirement and requirements review.
+- `dev-design` for phase 3: design review.
+- `dev-planning` for phases 4 and 6: initial task planning and updates after implementation tasks.
+- `dev-implementation` for phases 5 and 7: execute plan and check implementation.
+- `dev-testing` for phase 8: write tests and verify coverage.
+- `dev-review` for phase 9: final code review.
+
+Supporting skills:
+
+- `memory` for reusable project knowledge during clarification.
+- Load `tdd` with your skill tool before writing code in phase 5.
+- Load `verify` with your skill tool before any completion claim in phases 5, 7, 8, and 9, and immediately before every commit.
+- Load `dev-smoke` with your skill tool after Write Tests and before Code Review when the change touches a user-facing entry point (CLI command, API route or RPC handler, UI screen, daemon or wire protocol). Skipping it requires a stated reason.
+- Load `dev-simplify` with your skill tool in phase 7 for an analysis-only pass. Apply its changes only if it finds something worth fixing and the user or plan allows.
+- Load `dev-commit` with your skill tool before committing.
+- `dev-retro` after Code Review or PR: offer it, and run only if the user agrees.
+- `task` for optional progress tracing when the task command is usable.
+
+Following a summary of a skill is not a substitute for loading it.
+
+## Startup Validation
+
+At the beginning of every `dev-lifecycle` run:
+
+1. Run `npx ai-devkit@latest skill list` and `npx ai-devkit@latest skill list --global` to inspect currently installed project and global skills.
+2. Confirm the required phase skills and supporting skills are covered by the union of both lists.
+3. Only if a required skill is missing from both, run `npx ai-devkit@latest skill add --built-in` to install all AI DevKit built-in skills. Then rerun both lists.
+4. If installation fails or a required skill is still missing from both, stop and report the missing skill names and command output summary. Do not run a phase without its skill.
+5. Run `npx ai-devkit@latest lint` to verify the configured AI docs structure.
+6. If working on a specific feature, run `npx ai-devkit@latest lint --feature <name>`.
+7. If lint fails because project docs are not initialized, run `npx ai-devkit@latest init -a -e claude --built-in --yes`, then rerun lint.
+8. Probe optional task tracing availability:
+   - With a feature: `npx ai-devkit@latest task list --name <feature-name> --json`
+   - Without a feature: `npx ai-devkit@latest task list --json`
+   - Treat task tracing as available only if the read probe exits 0. If it fails, record task tracing as unavailable with the failed command and reason, then continue without task logging.
+   - Never block lifecycle work only because the task command is missing or unusable.
+9. When working on a specific feature and task tracing is available:
+   - Load and follow `task` before executing a phase.
+   - Initialize or show the task named after the feature, mark active work, and emit phase/progress/next/blocker/evidence events per `task`.
+   - Sequence task mutations; do not batch or parallelize mutations for the same feature.
+
+## Plan Before Execution
+
+Before executing any phase:
+
+1. Identify the target feature, current docs state, branch/worktree context, and likely next phase.
+2. Propose a concise plan that names the phase skill to use, the docs/files to read, commands to run, expected edits, task tracing status and planned task events if tracing is available, and verification evidence.
+3. Wait for user approval before executing the plan unless the user already gave explicit approval for that exact phase execution.
+4. After approval, load and follow only the selected phase skill plus any explicitly required supporting skills. If tracing is available, the `task` skill is explicitly required.
+
+## Phase Routing
+
+| Phase | Route to | When |
+|---|---|---|
+| Setup. Workspace | `dev-worktree` | Starting or resuming feature work |
+| 1. New Requirement | `dev-requirements` | User wants to add a feature or start `/new-requirement` |
+| 2. Review Requirements | `dev-requirements` | Requirements doc needs validation |
+| 3. Review Design | `dev-design` | Design doc needs validation against requirements |
+| 4. Create Initial Plan | `dev-planning` | Requirements, design, and testing docs are ready for task breakdown |
+| 5. Execute Plan | `dev-implementation` | Ready to implement tasks from planning doc |
+| 6. Update Planning | `dev-planning` | Auto-trigger after completing any implementation task |
+| 7. Check Implementation | `dev-implementation` | Verify code matches design and docs |
+| 8. Write Tests | `dev-testing` | Add or verify test coverage |
+| 9. Code Review | `dev-review` | Final pre-push review |
+
+Sequential flow: setup -> 1 -> 2 -> 3 -> 4 -> 5 -> 6 after each completed task -> 7 -> 8 -> 9.
+
+## Required Skill Loads
+
+| Phase | Load with your skill tool |
+|---|---|
+| 5. Execute Plan | `dev-implementation`, `tdd` |
+| 7. Check Implementation | `dev-implementation`, `verify`, `dev-simplify` (analysis) |
+| 8. Write Tests | `dev-testing`, `verify` |
+| Before 9 | `dev-smoke` when the change touches a user-facing entry point |
+| 9. Code Review | `dev-review`, `verify` |
+| Commit | `dev-commit`, `verify` |
+
+End every phase summary with `Skills loaded: <skills>` and `Skipped: <skill> (<reason>)`. When task tracing is available, record that line with `task progress`.
+
+## Resuming Work
+
+If the user wants to continue work on an existing feature:
+
+1. Use `dev-worktree` to identify and confirm the target branch/worktree.
+2. Run `npx ai-devkit@latest lint --feature <feature-name>` in the active context.
+3. Run the phase detector from the installed `dev-lifecycle` skill directory:
+   - Resolve `<skill-dir>` as the directory containing this `SKILL.md`.
+   - Run `<skill-dir>/scripts/check-status.sh <feature-name>`.
+   - Use the suggested phase when proposing the execution plan.
+
+## Backward Transitions
+
+Not every phase moves forward. When a phase reveals problems, route back:
+
+- Requirements review finds fundamental gaps: return to `dev-requirements` Phase 1.
+- Design review finds requirements gaps: return to `dev-requirements` Phase 2.
+- Design review finds design flaws: stay in `dev-design` and revise design.
+- Implementation check finds major deviations: return to `dev-design` if design is wrong, or `dev-implementation` if code is wrong.
+- Testing reveals design flaws: return to `dev-design`.
+- Review finds blocking issues: return to `dev-implementation` or `dev-testing`.
+- Smoke check finds a regression: return to `dev-implementation`.
+- User requests changes after review: return to `dev-implementation` (or the earlier phase the change needs).
+
+When task tracing is available, record every backward transition with `task phase`, and with `task feedback` when it comes from user or review feedback (see `task` Rework).
+
+## Rules
+
+- Use `npx ai-devkit@latest lint` and `npx ai-devkit@latest lint --feature <name>` to discover and validate the configured docs directory. Do not assume `docs/ai`; it is only the default.
+- Read existing configured AI docs before changes. Keep diffs minimal.
+- Keep feature names aligned with branch/worktree `feature-<name>`.
+- New feature docs come from `npx ai-devkit@latest docs init-feature <name>`. Use the paths returned by the command as authoritative.
+- Existing feature docs are the paths reported or validated by `npx ai-devkit@latest lint --feature <name>`. If you must infer manually, first resolve the configured docs directory from `.ai-devkit.json` `paths.docs`, falling back to `docs/ai`.
+- After each phase, summarize output and suggest the next phase.
+- Pre-approval removes approval waits; it never skips phases or required skill loads.
+- Do not claim completion without fresh verification evidence.
+- When task tracing is available, follow `task`: create once, assign actor when known, mark active/blocked, set phase, record progress/next/evidence, and close only after final verification/review. If tracing is unavailable, include failed probe commands in the phase summary without blocking the lifecycle.

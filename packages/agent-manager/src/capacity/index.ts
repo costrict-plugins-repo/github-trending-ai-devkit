@@ -1,0 +1,127 @@
+import { constants } from "node:fs";
+import { access as fsAccess } from "node:fs/promises";
+import path from "node:path";
+import { codexUnavailableReport, probeCodexCapacity } from "./sources/codex.js";
+import { probeClaudeCapacity, type ClaudeCapacityOptions } from "./sources/claude.js";
+import { probeDevinCapacity, type DevinCapacityOptions } from "./sources/devin.js";
+import {
+  probeOpenAiCapacity,
+  probePiAnthropicCapacity,
+  probeZaiCapacity,
+  type PiAnthropicCapacityOptions,
+  type PiOpenAiCapacityOptions,
+  type PiZaiCapacityOptions,
+} from "./sources/pi.js";
+import type { CapacityReport } from "./types.js";
+
+export type { CapacityReport, CapacityWindow } from "./types.js";
+export type { ClaudeCapacityOptions } from "./sources/claude.js";
+export type { DevinCapacityOptions } from "./sources/devin.js";
+export type { PiAnthropicCapacityOptions as AnthropicCapacityOptions } from "./sources/pi.js";
+export type {
+  PiOpenAiCapacityOptions as OpenAiCapacityOptions,
+  PiZaiCapacityOptions as ZaiCapacityOptions,
+} from "./sources/pi.js";
+
+export type CapacityProbeOptions = {
+  now?: () => Date;
+  path?: string;
+  access?: (target: string) => Promise<void>;
+  probe?: typeof probeCodexCapacity;
+};
+
+async function canAccess(target: string, mode: number): Promise<boolean> {
+  try {
+    await fsAccess(target, mode);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function isCodexInstalled(
+  pathValue: string,
+  checkAccess?: (target: string) => Promise<void>,
+): Promise<boolean> {
+  const directories = pathValue.split(path.delimiter).filter(Boolean);
+  for (const directory of directories) {
+    const executable = path.join(directory, "codex");
+    if (checkAccess) {
+      try {
+        await checkAccess(executable);
+        return true;
+      } catch {
+        continue;
+      }
+    }
+    if (await canAccess(executable, constants.X_OK)) return true;
+  }
+  return false;
+}
+
+export async function getCodexCapacityReport(
+  options: CapacityProbeOptions = {},
+): Promise<CapacityReport> {
+  const generatedAt = (options.now?.() ?? new Date()).toISOString();
+  const installed = await isCodexInstalled(options.path ?? process.env.PATH ?? "", options.access);
+  try {
+    return await (options.probe ?? probeCodexCapacity)({
+      installed,
+      checkedAt: generatedAt,
+    });
+  } catch {
+    return codexUnavailableReport(generatedAt);
+  }
+}
+
+export async function getZaiCapacityReport(
+  options: PiZaiCapacityOptions = {},
+): Promise<CapacityReport> {
+  const { now, ...probeOptions } = options;
+  return probeZaiCapacity({
+    ...probeOptions,
+    checkedAt: (now?.() ?? new Date()).toISOString(),
+  });
+}
+
+export async function getOpenAiCapacityReport(
+  options: PiOpenAiCapacityOptions = {},
+): Promise<CapacityReport> {
+  const { now, ...probeOptions } = options;
+  return probeOpenAiCapacity({
+    ...probeOptions,
+    checkedAt: (now?.() ?? new Date()).toISOString(),
+  });
+}
+
+export async function getClaudeCapacityReport(
+  options: ClaudeCapacityOptions = {},
+): Promise<CapacityReport> {
+  const { now, ...probeOptions } = options;
+  return probeClaudeCapacity({
+    ...probeOptions,
+    checkedAt: (now?.() ?? new Date()).toISOString(),
+    now,
+  });
+}
+
+export async function getDevinCapacityReport(
+  options: DevinCapacityOptions = {},
+): Promise<CapacityReport> {
+  const { now, ...probeOptions } = options;
+  return probeDevinCapacity({
+    ...probeOptions,
+    checkedAt: (now?.() ?? new Date()).toISOString(),
+  });
+}
+
+export async function getAnthropicCapacityReport(
+  options: PiAnthropicCapacityOptions = {},
+): Promise<CapacityReport> {
+  const { now, ...probeOptions } = options;
+  return probePiAnthropicCapacity({
+    ...probeOptions,
+    checkedAt: (now?.() ?? new Date()).toISOString(),
+    now,
+  });
+}

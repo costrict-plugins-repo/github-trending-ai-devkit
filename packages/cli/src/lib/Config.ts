@@ -1,0 +1,249 @@
+import fs from "fs-extra";
+import * as path from "path";
+import {
+  DevKitConfig,
+  Phase,
+  EnvironmentCode,
+  ConfigSkill,
+  DEFAULT_DOCS_DIR,
+  DEFAULT_PHASES,
+} from "../types.js";
+import { filterStringRecord, type AgentRuntimeProvider } from "../util/config.js";
+import { ConfigNotFoundError } from "../util/errors.js";
+import {
+  AddSkillRegistryOptions,
+  normalizeRegistrySources,
+  planSkillRegistryAdd,
+  planSkillRegistryRemove,
+} from "../services/skill/registry/skill-registry-source.js";
+import { GlobalConfigManager } from "./GlobalConfig.js";
+import packageJson from "../../package.json" with { type: "json" };
+
+const CONFIG_FILE_NAME = ".ai-devkit.json";
+
+export class ConfigManager {
+  private configPath: string;
+
+  constructor(targetDir: string = process.cwd()) {
+    this.configPath = path.join(targetDir, CONFIG_FILE_NAME);
+  }
+
+  async exists(): Promise<boolean> {
+    return fs.pathExists(this.configPath);
+  }
+
+  async read(): Promise<DevKitConfig | null> {
+    if (await this.exists()) {
+      const raw = await fs.readJson(this.configPath);
+      if (!raw) {
+        return null;
+      }
+      return raw as DevKitConfig;
+    }
+    return null;
+  }
+
+  async create(): Promise<DevKitConfig> {
+    const config: DevKitConfig = {
+      version: packageJson.version,
+      environments: [],
+      phases: [],
+      memory: { semantic: false },
+      createdAt: new Date().toISOString(),
+    };
+
+    await fs.writeJson(this.configPath, config, { spaces: 2 });
+    return config;
+  }
+
+  async update(updates: Partial<DevKitConfig>): Promise<DevKitConfig> {
+    const config = await this.read();
+    if (!config) {
+      throw new ConfigNotFoundError("Config file not found. Run ai-devkit init first.");
+    }
+
+    const updated = {
+      ...config,
+      ...updates,
+    };
+
+    if (JSON.stringify(updated) === JSON.stringify(config)) {
+      return config;
+    }
+
+    await fs.writeJson(this.configPath, updated, { spaces: 2 });
+    return updated;
+  }
+
+  async addPhase(phase: Phase): Promise<DevKitConfig> {
+    const config = await this.read();
+    if (!config) {
+      throw new ConfigNotFoundError("Config file not found. Run ai-devkit init first.");
+    }
+
+    const phases = Array.isArray(config.phases) ? [...config.phases] : [];
+    if (!phases.includes(phase)) {
+      phases.push(phase);
+      return this.update({ phases });
+    }
+
+    return config;
+  }
+
+  async hasPhase(phase: Phase): Promise<boolean> {
+    const config = await this.read();
+    if (!config) {
+      return false;
+    }
+
+    return Array.isArray(config.phases) && config.phases.includes(phase);
+  }
+
+  async getDocsDir(): Promise<string> {
+    const config = await this.read();
+    return config?.paths?.docs || DEFAULT_DOCS_DIR;
+  }
+
+  async getPhases(): Promise<Phase[]> {
+    const config = await this.read();
+    const phases = Array.isArray(config?.phases) ? config.phases : [];
+    return phases.length > 0 ? phases : [...DEFAULT_PHASES];
+  }
+
+  async getMemoryDbPath(): Promise<string | undefined> {
+    const config = await this.read();
+    return this.resolveConfiguredPath(config?.memory?.path);
+  }
+
+  /**
+   * Resolves with project > global > default(false) precedence, so semantic
+   * search can be turned on once globally instead of repeating it per project.
+   */
+  async getMemorySemanticEnabled(): Promise<boolean> {
+    const config = await this.read();
+    const projectValue = config?.memory?.semantic;
+    if (typeof projectValue === "boolean") {
+      return projectValue;
+    }
+
+    const globalConfig = await new GlobalConfigManager().read();
+    return globalConfig?.memory?.semantic === true;
+  }
+
+  async getAgentRuntimeProvider(): Promise<AgentRuntimeProvider> {
+    return new GlobalConfigManager().getAgentRuntimeProvider();
+  }
+
+  private resolveConfiguredPath(configuredPath: unknown): string | undefined {
+    if (typeof configuredPath !== "string") {
+      return undefined;
+    }
+
+    const trimmedPath = configuredPath.trim();
+    if (!trimmedPath) {
+      return undefined;
+    }
+
+    if (path.isAbsolute(trimmedPath)) {
+      return trimmedPath;
+    }
+
+    return path.resolve(path.dirname(this.configPath), trimmedPath);
+  }
+
+  async setDocsDir(docsDir: string): Promise<DevKitConfig> {
+    const config = await this.read();
+    if (!config) {
+      throw new ConfigNotFoundError("Config file not found. Run ai-devkit init first.");
+    }
+    return this.update({ paths: { ...config.paths, docs: docsDir } });
+  }
+
+  async getEnvironments(): Promise<EnvironmentCode[]> {
+    const config = await this.read();
+    return config?.environments || [];
+  }
+
+  async setEnvironments(environments: EnvironmentCode[]): Promise<DevKitConfig> {
+    return this.update({ environments });
+  }
+
+  async hasEnvironment(envCode: EnvironmentCode): Promise<boolean> {
+    const environments = await this.getEnvironments();
+    return environments.includes(envCode);
+  }
+
+  async addSkill(skill: ConfigSkill): Promise<DevKitConfig> {
+    const config = await this.read();
+    if (!config) {
+      throw new ConfigNotFoundError("Config file not found. Run ai-devkit init first.");
+    }
+
+    const installed = Array.isArray(config.skills) ? [...config.skills] : [];
+
+    const index = installed.findIndex(
+      (entry) => entry.registry === skill.registry && entry.name === skill.name,
+    );
+
+    if (index === -1) {
+      installed.push(skill);
+      return this.update({ skills: installed });
+    }
+
+    // An explicit mode replaces the saved one; no mode keeps it.
+    if (!skill.mode || installed[index].mode === skill.mode) {
+      return config;
+    }
+
+    installed[index] = { ...installed[index], mode: skill.mode };
+    return this.update({ skills: installed });
+  }
+
+  async removeSkill(skillName: string): Promise<DevKitConfig> {
+    const config = await this.read();
+    if (!config) {
+      throw new ConfigNotFoundError("Config file not found. Run ai-devkit init first.");
+    }
+
+    const installed = Array.isArray(config.skills) ? config.skills : [];
+    return this.update({ skills: installed.filter((entry) => entry.name !== skillName) });
+  }
+
+  async getSkillRegistries(): Promise<Record<string, string>> {
+    const config = await this.read();
+    return normalizeRegistrySources(
+      filterStringRecord(config?.registries),
+      path.dirname(this.configPath),
+    );
+  }
+
+  async addSkillRegistry(
+    id: string,
+    url: string,
+    options: AddSkillRegistryOptions = {},
+  ): Promise<DevKitConfig> {
+    const config = await this.read();
+    if (!config) {
+      throw new ConfigNotFoundError("Config file not found. Run ai-devkit init first.");
+    }
+
+    const mutation = planSkillRegistryAdd(filterStringRecord(config.registries), id, url, options);
+
+    if (mutation.status === "already-registered") {
+      return config;
+    }
+
+    return this.update({ registries: mutation.registries });
+  }
+
+  async removeSkillRegistry(id: string): Promise<DevKitConfig> {
+    const config = await this.read();
+    if (!config) {
+      throw new ConfigNotFoundError("Config file not found. Run ai-devkit init first.");
+    }
+    const mutation = planSkillRegistryRemove(filterStringRecord(config.registries), id);
+    return mutation.status === "removed"
+      ? this.update({ registries: mutation.registries })
+      : config;
+  }
+}
