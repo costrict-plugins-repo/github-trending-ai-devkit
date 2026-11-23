@@ -1,0 +1,111 @@
+import type { Command } from "commander";
+import {
+  getAnthropicCapacityReport,
+  getAntigravityCapacityReport,
+  getClaudeCapacityReport,
+  getCodexCapacityReport,
+  getDevinCapacityReport,
+  getOpenAiCapacityReport,
+  getZaiCapacityReport,
+} from "@ai-devkit/agent-manager";
+import { renderCapacityReports } from "./capacity/render.js";
+import { getErrorMessage } from "../util/text.js";
+import { ui } from "../util/terminal-ui.js";
+import type { CapacityReport } from "@ai-devkit/agent-manager";
+
+type CapacityOptions = { json?: boolean };
+type SupportedCapacityProvider =
+  | "anthropic"
+  | "antigravity"
+  | "claude"
+  | "codex"
+  | "devin"
+  | "openai"
+  | "zai";
+type ReportReader = (provider: SupportedCapacityProvider) => Promise<CapacityReport>;
+
+const SUPPORTED_PROVIDERS: readonly SupportedCapacityProvider[] = [
+  "codex",
+  "zai",
+  "openai",
+  "anthropic",
+  "claude",
+  "devin",
+  "antigravity",
+];
+const SUPPORTED_PROVIDER_LIST = SUPPORTED_PROVIDERS.map((provider) => `"${provider}"`).join(", ");
+
+function reportCapacityFailure(
+  provider: string,
+  error: unknown,
+  options: { json?: boolean } = {},
+): void {
+  const message = `${provider} capacity unavailable: ${getErrorMessage(error)}`;
+  if (options.json) console.error(message);
+  else ui.warning(message);
+}
+
+async function readCapacityReport(provider: SupportedCapacityProvider): Promise<CapacityReport> {
+  if (provider === "zai") return getZaiCapacityReport();
+  if (provider === "openai") return getOpenAiCapacityReport();
+  if (provider === "anthropic") return getAnthropicCapacityReport();
+  if (provider === "claude") return getClaudeCapacityReport();
+  if (provider === "devin") return getDevinCapacityReport();
+  if (provider === "antigravity") return getAntigravityCapacityReport();
+  return getCodexCapacityReport();
+}
+
+function normalizeProvider(provider: string): SupportedCapacityProvider | null {
+  const normalized = provider.toLowerCase();
+  if (normalized === "z.ai") return "zai";
+  if (normalized === "agy") return "antigravity";
+  return SUPPORTED_PROVIDERS.includes(normalized as SupportedCapacityProvider)
+    ? (normalized as SupportedCapacityProvider)
+    : null;
+}
+
+export async function capacityCommand(
+  providers: string[] | undefined,
+  options: CapacityOptions,
+  readReport: ReportReader = readCapacityReport,
+): Promise<void> {
+  const requested = providers?.length ? providers : SUPPORTED_PROVIDERS;
+  const normalized: SupportedCapacityProvider[] = [];
+  for (const provider of requested) {
+    const value = normalizeProvider(provider);
+    if (!value) {
+      throw new Error(
+        `Unknown capacity provider "${provider}". Supported providers: ${SUPPORTED_PROVIDER_LIST}.`,
+      );
+    }
+    if (!normalized.includes(value)) normalized.push(value);
+  }
+
+  const settled = await Promise.allSettled(
+    normalized.map(async (provider) => readReport(provider)),
+  );
+  const reports: CapacityReport[] = [];
+  for (let index = 0; index < normalized.length; index += 1) {
+    const outcome = settled[index];
+    if (outcome.status === "fulfilled") {
+      reports.push(outcome.value);
+    } else {
+      if (normalized.length === 1) throw outcome.reason;
+      reportCapacityFailure(normalized[index], outcome.reason, options);
+    }
+  }
+  renderCapacityReports(reports, options);
+}
+
+export function registerCapacityCommand(
+  program: Command,
+  readReport: ReportReader = readCapacityReport,
+): void {
+  program
+    .command("capacity [providers...]")
+    .description("Report AI provider capacity")
+    .option("-j, --json", "Output as JSON")
+    .action((providers: string[] | undefined, options: CapacityOptions) =>
+      capacityCommand(providers, options, readReport),
+    );
+}

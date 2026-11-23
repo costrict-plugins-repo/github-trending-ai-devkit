@@ -1,0 +1,9 @@
+{
+  "openai-codex": {
+    "type": "oauth",
+    "access": "sample access value for tests",
+    "refresh": "fixture-refresh-token",
+    "expires": 1793000000000,
+    "accountId": "fixture-chatgpt-account-id"
+  }
+}

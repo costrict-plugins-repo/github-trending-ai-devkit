@@ -1,0 +1,150 @@
+---
+title: AI DevKit vs Superpowers
+description: A detailed comparison between AI DevKit and Superpowers for teams standardizing AI coding agents.
+category: compare
+---
+
+Both **AI DevKit** and **Superpowers** solve an adjacent problem: AI coding agents are powerful, but they need structure. Without a shared operating model, results become inconsistent, context is lost between sessions, and important engineering steps get skipped.
+
+These tools take different paths to fix that.
+
+## Quick Comparison
+
+| | AI DevKit | Superpowers |
+|---|---|---|
+| **Type** | Control plane for AI coding agents with setup, memory, communication, skills, and verification | Opinionated skills framework |
+| **Install** | `npm install -g ai-devkit` | Agent-specific setup guide (see official repository) |
+| **Approach** | One operating model across agents: config, memory, communication, workflow skills, and verification | Behavior focused: process instructions injected into agent prompts |
+| **Memory** | Built-in local SQLite memory system | Relies on plan documents and git history |
+| **Skills** | Built-in core skills (`dev-lifecycle`, `dev-debug`, `dev-simplify`, `document-code`) plus community registry via `skill add/remove/find` | 14 built-in composable skills |
+| **Agents supported** | Broad setup support across Cursor, Claude Code, Codex, Copilot, Gemini CLI, opencode, Antigravity, and others | 4 (Claude Code, Cursor, Codex, opencode) |
+| **Documentation** | Phase-based directory structure (`docs/ai/`) | Design docs saved to `docs/plans/` |
+| **Execution model** | Single agent per feature with persistent memory | Sub-agent dispatching with two-stage review |
+| **License** | Apache-2.0 | MIT |
+| **Best for** | Teams that want one control plane across coding agents, plus memory and reusable skills | Teams that want strict, opinionated workflow enforcement inside a smaller agent set |
+
+> Note: Agent and skill counts can change over time. Check each project's repository for the latest numbers.
+
+## Quick Decision Guide
+
+- Choose **AI DevKit** if your problem is operating several coding agents with one setup, memory layer, communication path, and verification model.
+- Choose **Superpowers** if your problem is enforcing a stricter agent behavior methodology inside its supported tools.
+- Use both if you want AI DevKit as the control plane and Superpowers as an opinionated behavior layer.
+
+## First 10 Minutes
+
+### AI DevKit
+
+```bash
+npm install -g ai-devkit
+ai-devkit setup
+cd your-project
+ai-devkit init
+# then in your AI editor
+Use the dev-lifecycle skill to start requirements for <feature>
+```
+
+### Superpowers
+
+Follow the official setup guide for your agent at https://github.com/obra/superpowers, then run one planning skill and one implementation skill on a small test feature to evaluate fit.
+
+## How They Work
+
+### AI DevKit
+
+AI DevKit is a **control plane for AI coding agents** that you install globally and initialize per project. It creates one project-local setup source, installs built-in skills like `dev-lifecycle`, `dev-debug`, `dev-simplify`, and `document-code`, adds persistent local memory, supports agent operations, and makes agents verify work before claiming completion.
+
+```bash
+npm install -g ai-devkit
+ai-devkit setup
+cd your-project
+ai-devkit init
+```
+
+After initialization, your project gets a `docs/ai/` directory with subdirectories for requirements, design, planning, implementation, and testing. Your AI agent uses workflow skills such as `dev-lifecycle`, `tdd`, and `verify` to plan before code and review before push.
+
+AI DevKit also provides a **local memory system** backed by SQLite. It stores coding standards, patterns, and decisions. This memory persists across sessions, so your AI agent can recall project-specific knowledge without you repeating it.
+
+### Superpowers
+
+Superpowers is an **agentic skills framework** (skills strongly drive how the AI plans and executes work). It provides 14 composable skills across the development lifecycle.
+
+When installed, Superpowers injects skill instructions into your AI agent's context. Skills like `brainstorming`, `writing-plans`, and `test-driven-development` enforce strict process gates. The agent must follow each phase before proceeding to the next.
+
+A distinctive feature is **sub-agent dispatching**. Superpowers can spin up fresh, isolated AI agent instances per task. Each sub-agent's work goes through a two-stage review: first for specification compliance, then for code quality.
+
+## Key Differences
+
+### Memory and Context Persistence
+
+**AI DevKit** includes a dedicated memory system. You can store and search knowledge using MCP tools or CLI commands (`ai-devkit memory store`, `ai-devkit memory search`). Memory is scoped by global, project, or repository level and tagged for easy discovery. This means your AI agent can recall decisions, patterns, and conventions from previous sessions.
+
+**Superpowers** does not have a built-in memory system. Context persists through plan documents saved to `docs/plans/` and git commit history. Each sub-agent starts fresh, which prevents context pollution but also means prior knowledge must be explicitly included in task descriptions.
+
+### Workflow Enforcement
+
+**AI DevKit** provides a repeatable workflow but remains flexible. Built-in skills like `dev-lifecycle` and `dev-debug` encourage consistency, while `dev-simplify` and `document-code` keep solutions practical and reusable. You can still adapt the workflow to your project. The docs structure is guidance, not a hard gate.
+
+**Superpowers** enforces strict process discipline. In its documented methodology, test-first development is treated as mandatory.
+
+### Skills and Extensibility
+
+**AI DevKit** combines built-in workflow skills (`dev-lifecycle`, `dev-debug`, `dev-simplify`, `document-code`) with a community-driven skill registry. You can browse, install, and manage additional skills with CLI commands (`ai-devkit skill add`, `ai-devkit skill find`). This gives teams a solid default methodology plus extensibility for domain-specific capabilities.
+
+**Superpowers** comes with 14 built-in skills that form one cohesive methodology. There is a `writing-skills` skill for contributing new skills, but the system is more monolithic, with skills designed to work together in one workflow.
+
+### Agent Support
+
+**AI DevKit** supports a broad set of AI coding environments, including Cursor, Claude Code, GitHub Copilot, Gemini CLI, Codex, opencode, Antigravity, KiloCode, AMP, and Roo Code. Each environment gets tailored configuration. Operational commands such as session discovery and `agent send` depend on what each local agent exposes.
+
+**Superpowers** focuses on 4 platforms: Claude Code, Cursor, Codex, and opencode. Each has a dedicated installation method and configuration directory.
+
+### Execution Model
+
+**AI DevKit** usually runs one agent per feature, enhanced by persistent memory and workflow docs. In practice, teams often use the built-in `dev-lifecycle` skill, which creates a new git worktree per feature by default. This lets multiple features run in parallel while each feature stays isolated at the branch/worktree level.
+
+AI DevKit's preferred scaling pattern is to maximize context quality with one agent per feature, then scale out by feature (more worktrees), instead of splitting one feature across many sub-agents. This reduces context fragmentation and avoids extra context pressure from coordinating many agents on the same feature.
+
+**Superpowers** uses a multi-agent architecture. The `subagent-driven-development` skill dispatches fresh sub-agents per task, each with two-stage review. This helps prevent context contamination, but it usually costs more coordination and compute.
+
+## When to Use Which
+
+### Choose AI DevKit if you want:
+
+- A control plane that works with the AI coding tools you already use
+- Persistent memory across sessions without repeating yourself
+- Support for a wide range of AI coding environments
+- Flexibility to adopt structured practices gradually
+- Built-in skills for lifecycle, debugging, simplification, and code documentation
+- A community skill ecosystem to extend capabilities
+- Simple installation via npm
+
+### Choose Superpowers if you want:
+
+- Strict process enforcement with hard gates between phases
+- Multi-agent task execution with built-in code review
+- An opinionated methodology where TDD is mandatory
+- Sub-agent isolation to prevent context pollution
+- A self-contained framework with all skills included
+
+### Using Them Together
+
+AI DevKit and Superpowers are not mutually exclusive. AI DevKit can provide the **operating layer** (agent setup, memory, skill management, communication, and scaffolding), while Superpowers can provide the **behavioral layer** (strict process rules and multi-agent orchestration). Teams that want both persistent memory and strict workflow enforcement can combine them.
+
+## Getting Started with AI DevKit
+
+Ready to give your AI coding agents one control plane? Install AI DevKit and initialize your project:
+
+```bash
+npm install -g ai-devkit
+ai-devkit setup
+cd your-project
+ai-devkit init
+```
+
+Then ask the agent to use `dev-lifecycle` so it clarifies the feature before editing code. See [Getting Started](https://ai-devkit.com/docs/1-getting-started) for the npx-only and CI paths.
+
+## Sources
+
+- AI DevKit repository: https://github.com/codeaholicguy/ai-devkit
+- Superpowers repository: https://github.com/obra/superpowers
